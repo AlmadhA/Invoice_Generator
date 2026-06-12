@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Generator — Madha</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --ks-primary: #7B4A1E;
+    --ks-bg: #F5F0E8;
+    --ks-accent: #A0662A;
+    --nd-primary: #2B6CB0;
+    --nd-bg: #F0F6FF;
+    --nd-accent: #1A4A8A;
+    --warm-primary: #C05621;
+    --warm-bg: #FFF8F0;
+    --modern-primary: #2D3748;
+    --modern-bg: #F7FAFC;
+    --elegant-primary: #553C9A;
+    --elegant-bg: #FAF5FF;
+    --fresh-primary: #276749;
+    --fresh-bg: #F0FFF4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #F1F5F9; min-height: 100vh; }
+
+  /* ===== LAYOUT ===== */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: 340px; min-width: 340px; background: #1E293B; color: #E2E8F0; overflow-y: auto; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar-header { padding: 20px; background: #0F172A; border-bottom: 1px solid #334155; }
+  .sidebar-header h1 { font-size: 16px; font-weight: 700; color: #F8FAFC; }
+  .sidebar-header p { font-size: 11px; color: #94A3B8; margin-top: 3px; }
+  .sidebar-section { padding: 16px; border-bottom: 1px solid #1E3A5F; }
+  .sidebar-section h2 { font-size: 11px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+
+  .bisnis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bisnis-btn {
+    padding: 10px 8px; border: 1px solid #334155; border-radius: 8px;
+    background: #1E293B; color: #CBD5E1; cursor: pointer; font-size: 11px;
+    text-align: center; transition: all 0.2s; line-height: 1.4;
+  }
+  .bisnis-btn:hover { border-color: #64748B; background: #2D3E52; }
+  .bisnis-btn.active { border-color: #3B82F6; background: #1E3A5F; color: #93C5FD; }
+  .bisnis-btn .emoji { font-size: 18px; display: block; margin-bottom: 4px; }
+
+  .form-group { margin-bottom: 12px; }
+  label { display: block; font-size: 11px; color: #94A3B8; margin-bottom: 5px; }
+  input, textarea, select {
+    width: 100%; padding: 8px 10px; background: #0F172A; border: 1px solid #334155;
+    border-radius: 6px; color: #E2E8F0; font-size: 12px; outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: #3B82F6; }
+  textarea { resize: vertical; min-height: 60px; }
+  select option { background: #1E293B; }
+
+  .items-list { display: flex; flex-direction: column; gap: 8px; }
+  .item-row {
+    background: #0F172A; border: 1px solid #334155; border-radius: 6px;
+    padding: 10px; position: relative;
+  }
+  .item-row input { margin-bottom: 6px; }
+  .item-row input:last-child { margin-bottom: 0; }
+  .item-qty-price { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .item-label { font-size: 10px; color: #64748B; margin-bottom: 2px; }
+  .remove-item {
+    position: absolute; top: 6px; right: 6px; background: #7F1D1D;
+    border: none; color: #FCA5A5; width: 20px; height: 20px; border-radius: 4px;
+    cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;
+  }
+  .add-item-btn {
+    width: 100%; padding: 8px; background: #0F172A; border: 1px dashed #334155;
+    border-radius: 6px; color: #64748B; cursor: pointer; font-size: 12px;
+    transition: all 0.2s;
+  }
+  .add-item-btn:hover { border-color: #3B82F6; color: #93C5FD; }
+
+  .discount-row { display: flex; gap: 6px; }
+  .discount-row select { width: 80px; flex-shrink: 0; }
+  .discount-row input { flex: 1; }
+
+  .summary-box { background: #0F172A; border-radius: 8px; padding: 12px; margin-top: 4px; }
+  .summary-row { display: flex; justify-content: space-between; font-size: 12px; color: #94A3B8; padding: 3px 0; }
+  .summary-row.total { color: #F8FAFC; font-weight: 700; font-size: 14px; border-top: 1px solid #334155; margin-top: 6px; padding-top: 8px; }
+  .summary-row.sisa { color: #34D399; font-weight: 700; }
+
+  .action-btns { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .btn {
+    width: 100%; padding: 11px; border: none; border-radius: 8px;
+    cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;
+  }
+  .btn-primary { background: #2563EB; color: white; }
+  .btn-primary:hover { background: #1D4ED8; }
+  .btn-wa { background: #16A34A; color: white; }
+  .btn-wa:hover { background: #15803D; }
+  .btn-history { background: #334155; color: #CBD5E1; }
+  .btn-history:hover { background: #475569; }
+
+  /* ===== PREVIEW ===== */
+  .preview-card {
+    background: white; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    max-width: 760px; margin: 0 auto; overflow: hidden;
+  }
+
+  /* ===== INVOICE STYLES per theme ===== */
+  .invoice { font-family: 'Segoe UI', sans-serif; }
+
+  /* KS Theme - Elegant brown */
+  .theme-ks .inv-header { background: var(--ks-bg); padding: 36px 40px 28px; border-bottom: 3px solid var(--ks-primary); }
+  .theme-ks .inv-header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .theme-ks .inv-logo { height: 80px; object-fit: contain; }
+  .theme-ks .inv-title { font-size: 32px; font-weight: 300; color: var(--ks-primary); letter-spacing: 6px; text-transform: uppercase; }
+  .theme-ks .inv-number { color: var(--ks-accent); font-size: 13px; margin-top: 4px; }
+  .theme-ks .inv-meta { background: var(--ks-bg); padding: 20px 40px; display: flex; justify-content: space-between; border-bottom: 1px solid #DDD0BC; }
+  .theme-ks .inv-meta-label { font-size: 10px; color: var(--ks-accent); text-transform: uppercase; letter-spacing: 1px; }
+  .theme-ks .inv-meta-value { font-size: 14px; color: #3D2B10; font-weight: 600; margin-top: 2px; }
+  .theme-ks .inv-body { padding: 28px 40px; }
+  .theme-ks table { width: 100%; border-collapse: collapse; }
+  .theme-ks thead tr { background: var(--ks-primary); color: white; }
+  .theme-ks thead th { padding: 10px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; }
+  .theme-ks thead th:last-child { text-align: right; }
+  .theme-ks tbody tr { border-bottom: 1px solid #EDE4D6; }
+  .theme-ks tbody tr:nth-child(even) { background: #FAF6F0; }
+  .theme-ks tbody td { padding: 10px 14px; font-size: 13px; color: #3D2B10; }
+  .theme-ks tbody td:last-child { text-align: right; }
+  .theme-ks .inv-calc { margin-top: 20px; display: flex; justify-content: flex-end; }
+  .theme-ks .calc-table { width: 280px; }
+  .theme-ks .calc-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; color: #5A3E20; }
+  .theme-ks .calc-row.total { border-top: 2px solid var(--ks-primary); margin-top: 4px; padding-top: 8px; font-weight: 700; font-size: 16px; color: var(--ks-primary); }
+  .theme-ks .calc-row.sisa { color: #2D6A4F; font-weight: 700; font-size: 15px; }
+  .theme-ks .inv-footer { background: var(--ks-bg); padding: 24px 40px; border-top: 1px solid #DDD0BC; }
+  .theme-ks .inv-footer-title { font-size: 11px; color: var(--ks-accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600; }
+  .theme-ks .bank-list { display: flex; gap: 20px; flex-wrap: wrap; }
+  .theme-ks .bank-item { font-size: 12px; color: #3D2B10; }
+  .theme-ks .bank-name { font-weight: 700; }
+  .theme-ks .inv-note { margin-top: 14px; font-size: 11px; color: var(--ks-accent); font-style: italic; border-top: 1px solid #DDD0BC; padding-top: 10px; }
+  .theme-ks .inv-contact { margin-top: 8px; font-size: 11px; color: #7A5C3A; }
+  .theme-ks .bisnis-info { color: #5A3E20; font-size: 13px; margin-top: 2px; }
+
+  /* ND Theme - Bold blue modern */
+  .theme-nd .inv-header { background: #0F1E35; padding: 32px 40px 24px; }
+  .theme-nd .inv-header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .theme-nd .inv-logo { height: 72px; object-fit: contain; background: white; border-radius: 8px; padding: 6px; }
+  .theme-nd .inv-title { font-size: 28px; font-weight: 800; color: white; letter-spacing: 3px; text-transform: uppercase; }
+  .theme-nd .inv-number { color: #60A5FA; font-size: 13px; margin-top: 6px; font-family: monospace; }
+  .theme-nd .inv-meta { background: var(--nd-bg); padding: 18px 40px; display: flex; justify-content: space-between; border-bottom: 3px solid var(--nd-primary); }
+  .theme-nd .inv-meta-label { font-size: 10px; color: var(--nd-primary); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  .theme-nd .inv-meta-value { font-size: 14px; color: #1A2744; font-weight: 700; margin-top: 2px; }
+  .theme-nd .inv-body { padding: 28px 40px; }
+  .theme-nd table { width: 100%; border-collapse: collapse; }
+  .theme-nd thead tr { background: var(--nd-primary); color: white; }
+  .theme-nd thead th { padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; }
+  .theme-nd thead th:last-child { text-align: right; }
+  .theme-nd tbody tr { border-bottom: 1px solid #DBEAFE; }
+  .theme-nd tbody tr:nth-child(even) { background: #EFF6FF; }
+  .theme-nd tbody td { padding: 10px 14px; font-size: 13px; color: #1E3A5F; }
+  .theme-nd tbody td:last-child { text-align: right; }
+  .theme-nd .inv-calc { margin-top: 20px; display: flex; justify-content: flex-end; }
+  .theme-nd .calc-table { width: 280px; }
+  .theme-nd .calc-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; color: #2D4A6E; }
+  .theme-nd .calc-row.total { border-top: 2px solid var(--nd-primary); margin-top: 4px; padding-top: 8px; font-weight: 800; font-size: 16px; color: var(--nd-primary); }
+  .theme-nd .calc-row.sisa { color: #15803D; font-weight: 700; font-size: 15px; }
+  .theme-nd .inv-footer { background: var(--nd-bg); padding: 24px 40px; border-top: 2px solid #BFDBFE; }
+  .theme-nd .inv-footer-title { font-size: 11px; color: var(--nd-primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 700; }
+  .theme-nd .bank-list { display: flex; gap: 20px; flex-wrap: wrap; }
+  .theme-nd .bank-item { font-size: 12px; color: #1E3A5F; }
+  .theme-nd .bank-name { font-weight: 700; }
+  .theme-nd .inv-note { margin-top: 14px; font-size: 11px; color: var(--nd-primary); font-style: italic; border-top: 1px solid #BFDBFE; padding-top: 10px; }
+  .theme-nd .inv-contact { margin-top: 8px; font-size: 11px; color: #2D4A6E; }
+  .theme-nd .bisnis-info { color: #1E3A5F; font-size: 13px; margin-top: 2px; }
+
+  /* Generic/Custom themes */
+  .theme-generic .inv-header { padding: 32px 40px 24px; }
+  .theme-generic .inv-header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .theme-generic .inv-logo { height: 64px; object-fit: contain; }
+  .theme-generic .inv-title { font-size: 28px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; }
+  .theme-generic .inv-number { font-size: 13px; margin-top: 4px; opacity: 0.7; }
+  .theme-generic .inv-meta { padding: 18px 40px; display: flex; justify-content: space-between; }
+  .theme-generic .inv-meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; opacity: 0.6; }
+  .theme-generic .inv-meta-value { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .theme-generic .inv-body { padding: 28px 40px; }
+  .theme-generic table { width: 100%; border-collapse: collapse; }
+  .theme-generic thead th { padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: left; }
+  .theme-generic thead th:last-child { text-align: right; }
+  .theme-generic tbody tr { border-bottom-width: 1px; border-bottom-style: solid; }
+  .theme-generic tbody td { padding: 10px 14px; font-size: 13px; }
+  .theme-generic tbody td:last-child { text-align: right; }
+  .theme-generic .inv-calc { margin-top: 20px; display: flex; justify-content: flex-end; }
+  .theme-generic .calc-table { width: 280px; }
+  .theme-generic .calc-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+  .theme-generic .calc-row.total { border-top-width: 2px; border-top-style: solid; margin-top: 4px; padding-top: 8px; font-weight: 800; font-size: 16px; }
+  .theme-generic .calc-row.sisa { color: #15803D; font-weight: 700; font-size: 15px; }
+  .theme-generic .inv-footer { padding: 24px 40px; }
+  .theme-generic .inv-footer-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 700; opacity: 0.6; }
+  .theme-generic .bank-list { display: flex; gap: 20px; flex-wrap: wrap; }
+  .theme-generic .bank-item { font-size: 12px; }
+  .theme-generic .bank-name { font-weight: 700; }
+  .theme-generic .inv-note { margin-top: 14px; font-size: 11px; font-style: italic; padding-top: 10px; }
+  .theme-generic .inv-contact { margin-top: 8px; font-size: 11px; opacity: 0.7; }
+  .theme-generic .bisnis-info { font-size: 13px; margin-top: 2px; }
+
+  /* Generic theme color variants */
+  .theme-warm .inv-header { background: #FFF8F0; border-bottom: 3px solid #C05621; }
+  .theme-warm .inv-title { color: #C05621; }
+  .theme-warm .inv-number { color: #9C4221; }
+  .theme-warm .inv-meta { background: #FFF8F0; border-bottom: 1px solid #FBD38D; }
+  .theme-warm .inv-meta-label { color: #9C4221; }
+  .theme-warm .inv-meta-value { color: #652B19; }
+  .theme-warm thead tr { background: #C05621; color: white; }
+  .theme-warm tbody tr { border-bottom-color: #FBD38D; }
+  .theme-warm tbody tr:nth-child(even) { background: #FFFAF0; }
+  .theme-warm tbody td { color: #652B19; }
+  .theme-warm .calc-row { color: #7B341E; }
+  .theme-warm .calc-row.total { border-top-color: #C05621; color: #C05621; }
+  .theme-warm .inv-footer { background: #FFF8F0; border-top: 1px solid #FBD38D; }
+  .theme-warm .inv-footer-title { color: #9C4221; }
+  .theme-warm .bank-item { color: #652B19; }
+  .theme-warm .inv-note { color: #9C4221; border-top-color: #FBD38D; }
+  .theme-warm .inv-contact { color: #7B341E; }
+  .theme-warm .bisnis-info { color: #652B19; }
+
+  .theme-modern .inv-header { background: #1A202C; border-bottom: 3px solid #4A5568; }
+  .theme-modern .inv-title { color: white; }
+  .theme-modern .inv-number { color: #A0AEC0; }
+  .theme-modern .inv-meta { background: #F7FAFC; border-bottom: 2px solid #2D3748; }
+  .theme-modern .inv-meta-label { color: #4A5568; }
+  .theme-modern .inv-meta-value { color: #1A202C; }
+  .theme-modern thead tr { background: #2D3748; color: white; }
+  .theme-modern tbody tr { border-bottom-color: #E2E8F0; }
+  .theme-modern tbody tr:nth-child(even) { background: #F7FAFC; }
+  .theme-modern tbody td { color: #2D3748; }
+  .theme-modern .calc-row { color: #4A5568; }
+  .theme-modern .calc-row.total { border-top-color: #2D3748; color: #1A202C; }
+  .theme-modern .inv-footer { background: #F7FAFC; border-top: 1px solid #E2E8F0; }
+  .theme-modern .inv-footer-title { color: #4A5568; }
+  .theme-modern .bank-item { color: #2D3748; }
+  .theme-modern .inv-note { color: #718096; border-top-color: #E2E8F0; }
+  .theme-modern .inv-contact { color: #4A5568; }
+  .theme-modern .bisnis-info { color: #2D3748; }
+
+  .theme-elegant .inv-header { background: #FAF5FF; border-bottom: 3px solid #553C9A; }
+  .theme-elegant .inv-title { color: #553C9A; }
+  .theme-elegant .inv-number { color: #6B46C1; }
+  .theme-elegant .inv-meta { background: #FAF5FF; border-bottom: 1px solid #D6BCFA; }
+  .theme-elegant .inv-meta-label { color: #6B46C1; }
+  .theme-elegant .inv-meta-value { color: #322659; }
+  .theme-elegant thead tr { background: #553C9A; color: white; }
+  .theme-elegant tbody tr { border-bottom-color: #E9D8FD; }
+  .theme-elegant tbody tr:nth-child(even) { background: #FDF8FF; }
+  .theme-elegant tbody td { color: #322659; }
+  .theme-elegant .calc-row { color: #44337A; }
+  .theme-elegant .calc-row.total { border-top-color: #553C9A; color: #553C9A; }
+  .theme-elegant .inv-footer { background: #FAF5FF; border-top: 1px solid #D6BCFA; }
+  .theme-elegant .inv-footer-title { color: #6B46C1; }
+  .theme-elegant .bank-item { color: #322659; }
+  .theme-elegant .inv-note { color: #6B46C1; border-top-color: #D6BCFA; }
+  .theme-elegant .inv-contact { color: #44337A; }
+  .theme-elegant .bisnis-info { color: #322659; }
+
+  .theme-fresh .inv-header { background: #F0FFF4; border-bottom: 3px solid #276749; }
+  .theme-fresh .inv-title { color: #276749; }
+  .theme-fresh .inv-number { color: #2F855A; }
+  .theme-fresh .inv-meta { background: #F0FFF4; border-bottom: 1px solid #9AE6B4; }
+  .theme-fresh .inv-meta-label { color: #2F855A; }
+  .theme-fresh .inv-meta-value { color: #1C4532; }
+  .theme-fresh thead tr { background: #276749; color: white; }
+  .theme-fresh tbody tr { border-bottom-color: #C6F6D5; }
+  .theme-fresh tbody tr:nth-child(even) { background: #F0FFF4; }
+  .theme-fresh tbody td { color: #1C4532; }
+  .theme-fresh .calc-row { color: #22543D; }
+  .theme-fresh .calc-row.total { border-top-color: #276749; color: #276749; }
+  .theme-fresh .inv-footer { background: #F0FFF4; border-top: 1px solid #9AE6B4; }
+  .theme-fresh .inv-footer-title { color: #2F855A; }
+  .theme-fresh .bank-item { color: #1C4532; }
+  .theme-fresh .inv-note { color: #2F855A; border-top-color: #9AE6B4; }
+  .theme-fresh .inv-contact { color: #22543D; }
+  .theme-fresh .bisnis-info { color: #1C4532; }
+
+  /* ===== HISTORY PANEL ===== */
+  .history-panel { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; padding: 24px; overflow-y: auto; }
+  .history-panel.show { display: flex; align-items: flex-start; justify-content: center; }
+  .history-box { background: #1E293B; border-radius: 12px; width: 100%; max-width: 700px; overflow: hidden; }
+  .history-header { padding: 16px 20px; background: #0F172A; display: flex; justify-content: space-between; align-items: center; }
+  .history-header h2 { color: #F8FAFC; font-size: 15px; }
+  .close-history { background: #334155; border: none; color: #94A3B8; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .history-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 70vh; overflow-y: auto; }
+  .history-item { background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 12px; }
+  .history-item-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .history-item-name { font-size: 13px; font-weight: 600; color: #E2E8F0; }
+  .history-item-inv { font-size: 11px; color: #64748B; margin-top: 2px; }
+  .status-badge { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+  .status-paid { background: #064E3B; color: #34D399; }
+  .status-unpaid { background: #7F1D1D; color: #FCA5A5; }
+  .history-item-detail { margin-top: 8px; font-size: 12px; color: #94A3B8; display: flex; gap: 16px; }
+  .history-item-actions { margin-top: 10px; display: flex; gap: 6px; }
+  .hist-btn { padding: 4px 10px; border: 1px solid #334155; background: #1E293B; color: #CBD5E1; border-radius: 4px; font-size: 11px; cursor: pointer; }
+  .hist-btn:hover { background: #334155; }
+  .hist-btn-paid { border-color: #064E3B; color: #34D399; }
+  .hist-btn-del { border-color: #7F1D1D; color: #FCA5A5; }
+  .empty-history { text-align: center; padding: 40px; color: #64748B; font-size: 13px; }
+
+  @media (max-width: 768px) {
+    .app { flex-direction: column; height: auto; }
+    .sidebar { width: 100%; min-width: auto; }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>🧾 Invoice Generator</h1>
+    <p>by Madha</p>
+  </div>
+
+  <!-- Pilih Bisnis -->
+  <div class="sidebar-section">
+    <h2>Profil Bisnis</h2>
+    <div class="bisnis-grid">
+      <button class="bisnis-btn active" onclick="setBisnis('ks')" id="btn-ks">
+        <span class="emoji">💍</span>Kidung Sore WO
+      </button>
+      <button class="bisnis-btn" onclick="setBisnis('nd')" id="btn-nd">
+        <span class="emoji">💻</span>#NgeData Madha
+      </button>
+      <button class="bisnis-btn" onclick="setBisnis('custom')" id="btn-custom" style="grid-column: 1/-1;">
+        <span class="emoji">✏️</span>Bisnis Lainnya (isi manual)
+      </button>
+    </div>
+    <div id="custom-fields" style="display:none; margin-top:10px;">
+      <div class="form-group">
+        <label>Nama Bisnis</label>
+        <input id="custom-nama" type="text" placeholder="contoh: Catering Bu Mertua" oninput="renderPreview()">
+      </div>
+      <div class="form-group">
+        <label>Tema Warna</label>
+        <select id="custom-tema" onchange="renderPreview()">
+          <option value="warm">🟠 Warm Orange</option>
+          <option value="modern">⬛ Modern Dark</option>
+          <option value="elegant">🟣 Elegant Purple</option>
+          <option value="fresh">🟢 Fresh Green</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Invoice -->
+  <div class="sidebar-section">
+    <h2>Data Invoice</h2>
+    <div class="form-group">
+      <label>Nomor Invoice</label>
+      <input id="inv-number" type="text" placeholder="misal: INV-001" oninput="renderPreview()">
+    </div>
+    <div class="form-group">
+      <label>Tanggal</label>
+      <input id="inv-date" type="date" oninput="renderPreview()">
+    </div>
+    <div class="form-group">
+      <label>Jatuh Tempo</label>
+      <input id="inv-due" type="date" oninput="renderPreview()">
+    </div>
+  </div>
+
+  <!-- Data Klien -->
+  <div class="sidebar-section">
+    <h2>Data Klien</h2>
+    <div class="form-group">
+      <label>Nama Klien</label>
+      <input id="client-name" type="text" placeholder="Nama lengkap klien" oninput="renderPreview()">
+    </div>
+    <div class="form-group">
+      <label>No. WhatsApp Klien</label>
+      <input id="client-wa" type="text" placeholder="628xxxxxxxxxx" oninput="renderPreview()">
+    </div>
+    <div class="form-group">
+      <label>Alamat / Keterangan</label>
+      <textarea id="client-address" placeholder="Alamat atau info acara" oninput="renderPreview()"></textarea>
+    </div>
+  </div>
+
+  <!-- Item -->
+  <div class="sidebar-section">
+    <h2>Item / Layanan</h2>
+    <div class="items-list" id="items-list"></div>
+    <button class="add-item-btn" onclick="addItem()">+ Tambah Item</button>
+  </div>
+
+  <!-- Kalkulasi -->
+  <div class="sidebar-section">
+    <h2>Diskon & Pembayaran</h2>
+    <div class="form-group">
+      <label>Diskon</label>
+      <div class="discount-row">
+        <select id="disc-type" onchange="calcSummary()">
+          <option value="nominal">Rp</option>
+          <option value="persen">%</option>
+        </select>
+        <input id="disc-value" type="number" placeholder="0" oninput="calcSummary()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>DP / Uang Muka</label>
+      <input id="dp-value" type="number" placeholder="0" oninput="calcSummary()">
+    </div>
+    <div class="summary-box">
+      <div class="summary-row"><span>Subtotal</span><span id="s-subtotal">Rp 0</span></div>
+      <div class="summary-row"><span>Diskon</span><span id="s-diskon">Rp 0</span></div>
+      <div class="summary-row total"><span>TOTAL</span><span id="s-total">Rp 0</span></div>
+      <div class="summary-row"><span>DP Masuk</span><span id="s-dp">Rp 0</span></div>
+      <div class="summary-row sisa"><span>Sisa Bayar</span><span id="s-sisa">Rp 0</span></div>
+    </div>
+  </div>
+
+  <!-- Catatan -->
+  <div class="sidebar-section">
+    <h2>Catatan Tambahan</h2>
+    <textarea id="extra-note" placeholder="Catatan khusus (opsional)..." oninput="renderPreview()"></textarea>
+  </div>
+
+  <!-- Tombol Aksi -->
+  <div class="action-btns">
+    <button class="btn btn-primary" onclick="downloadPDF()">⬇️ Download PDF</button>
+    <button class="btn btn-wa" onclick="sendWhatsApp()">📲 Kirim via WhatsApp</button>
+    <button class="btn btn-history" onclick="showHistory()">📋 Riwayat Invoice</button>
+  </div>
+</aside>
+
+<!-- MAIN PREVIEW -->
+<main class="main">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; max-width:760px; margin-left:auto; margin-right:auto;">
+    <div>
+      <h2 style="color:#1E293B; font-size:16px; font-weight:700;">Preview Invoice</h2>
+      <p style="color:#64748B; font-size:12px; margin-top:2px;">Diperbarui otomatis saat kamu mengetik</p>
+    </div>
+    <button onclick="saveToHistory()" style="background:#3B82F6; color:white; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600;">💾 Simpan ke Riwayat</button>
+  </div>
+  <div class="preview-card" id="invoice-preview">
+    <!-- Rendered here -->
+  </div>
+</main>
+</div>
+
+<!-- HISTORY PANEL -->
+<div class="history-panel" id="history-panel">
+  <div class="history-box">
+    <div class="history-header">
+      <h2>📋 Riwayat Invoice</h2>
+      <button class="close-history" onclick="hideHistory()">Tutup</button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const KS_LOGO = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAF3ASwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD6ZooorgNwooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAWiiigAooooAMUUUUAFGKKKACiiigAooooAKSlooAKSlooAKKKKACiiigAooooASloooAKMUUUAFFFFABRRRQAUUUUAFFFFABRiiigAxRiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK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Ks//AIUHeBvk13Tvf/j0b/4qk4yfxRuNSivhlY7+38UeBvA+jxabaapaiKEHEVs32iR2PVm25yx7k4rzD4g/F671621C00GGSyspQUkmZ/3sqd8Acpn3yf0rXtvgLCCPtniCQr3WC0C/qzH+Vdeugh9o45cXwF8Iv18pioH/fRNRacn0NE6Ue+55v8ADL4d6p4hnuL3WnuLLT7aLzFulZkMzN91YyRkk44I/DvXrlhbw2dlb2lquyCCNYo19FUYArH07QYbKYXF3cXGoXg6T3TbmX/dH8K/hWxXRFWRzSdypqNj9th2rI0Mg5DqAePcGuD1L4VCeSS6k1SWe7Y5Ml0m/I9BjoK9HornlhqNSTlKCbZpHEVIqykzhvD/AMOL3TZhLdazJFtbcsdrGqqp9Mk5/KumXQGmnjutTuft00JBhVo1SGEjkFEGcnuSSa3aKvD0KNCLjRioJ9le33slTlJ3kxqIqKFVQqjoAMCnUUVqSFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABSr94fUUlKv3h9RQCPK/hR4os/CPwk1PU74M5XUJUggThp5DGMKP5sewBrsvh54dWyt31u7uoNQ1rWoVuLq8j+7gjKRx9xGoxt98k9awPhv4KTRPE2oeJJ547m/1F3dYo2OyGLcDt+pOST2wB2rR+J09xaWUNxFrWoaVAFVZp7OGKQSR9MfvVYKf6VlFKNrK11/X9dTaclO/M7u/5nN+MNF1PRtcaXVbqK4mkDuLqPJ84H+8f8jrXqnwO0+7to/EMN/B5MtvOFiywYBSSG5BPGQRjj3zXA2+tPYaRqVlqcNxqqXUCWVxfyQ/wCkW6DogkHJZS7fe5IYZ5pPD3xz8T+EPC9tYQxm/S0xJbW9wCqwYPIJA3Ergcg9Ca0fvc1+pCVuXl2O/wDiVb6H4yOmW/htb7Ur+CZcSqji2mB4JYsAD7Y7e9W/gP8AFSa81qz8B+I5PMvhLssp5Pl8sAZEbH+Ie+e3XP0jDql14++H11d6N4kvNDvr62yiQWsd1L8w4bayvERn0J9K8k+HnxQ8K+A9dtfCPi7/AISTxJqXlslxdXCW0Yf5vkJARQ2SxwQSBz9TpJWsjGMveZ9P0UUV0HGFFFFACUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUwCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP//Z';
+const ND_LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAIAAAD2HxkiAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAABR/0lEqAAA==';
+
+const BANKS = [
+  { name: 'BCA', number: '3880736034' },
+  { name: 'BNI', number: '1952015745' },
+  { name: 'CIMB', number: '763622213800' },
+];
+
+let currentBisnis = 'ks';
+let items = [];
+let itemId = 0;
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date();
+  const dd = d => String(d).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}-${dd(d.getMonth()+1)}-${dd(d.getDate())}`;
+  document.getElementById('inv-date').value = fmt(today);
+  const due = new Date(today); due.setDate(due.getDate() + 7);
+  document.getElementById('inv-due').value = fmt(due);
+  addItem();
+  renderPreview();
+});
+
+// ===== BISNIS =====
+function setBisnis(b) {
+  currentBisnis = b;
+  document.querySelectorAll('.bisnis-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('btn-' + b)?.classList.add('active');
+  document.getElementById('custom-fields').style.display = b === 'custom' ? 'block' : 'none';
+  renderPreview();
+}
+
+// ===== ITEMS =====
+function addItem() {
+  const id = ++itemId;
+  items.push({ id, desc: '', qty: 1, price: 0 });
+  renderItems();
+}
+function removeItem(id) {
+  items = items.filter(i => i.id !== id);
+  renderItems();
+}
+function updateItem(id, field, val) {
+  const item = items.find(i => i.id === id);
+  if (item) {
+    item[field] = field === 'desc' ? val : (parseFloat(val) || 0);
+    calcSummary();
+    renderPreview();
+  }
+}
+function renderItems() {
+  const list = document.getElementById('items-list');
+  list.innerHTML = items.map(item => `
+    <div class="item-row">
+      <button class="remove-item" onclick="removeItem(${item.id})">×</button>
+      <div class="item-label">Deskripsi</div>
+      <input type="text" value="${item.desc}" placeholder="Nama layanan/produk"
+        oninput="updateItem(${item.id}, 'desc', this.value)" style="margin-bottom:6px">
+      <div class="item-qty-price">
+        <div>
+          <div class="item-label">Qty</div>
+          <input type="number" value="${item.qty}" min="1"
+            oninput="updateItem(${item.id}, 'qty', this.value)">
+        </div>
+        <div>
+          <div class="item-label">Harga Satuan (Rp)</div>
+          <input type="number" value="${item.price}" placeholder="0"
+            oninput="updateItem(${item.id}, 'price', this.value)">
+        </div>
+      </div>
+    </div>
+  `).join('');
+  calcSummary();
+  renderPreview();
+}
+
+// ===== CALC =====
+function getCalc() {
+  const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
+  const discType = document.getElementById('disc-type').value;
+  const discVal = parseFloat(document.getElementById('disc-value').value) || 0;
+  const diskon = discType === 'persen' ? subtotal * discVal / 100 : discVal;
+  const total = Math.max(0, subtotal - diskon);
+  const dp = parseFloat(document.getElementById('dp-value').value) || 0;
+  const sisa = Math.max(0, total - dp);
+  return { subtotal, diskon, total, dp, sisa };
+}
+function calcSummary() {
+  const { subtotal, diskon, total, dp, sisa } = getCalc();
+  document.getElementById('s-subtotal').textContent = formatRp(subtotal);
+  document.getElementById('s-diskon').textContent = '- ' + formatRp(diskon);
+  document.getElementById('s-total').textContent = formatRp(total);
+  document.getElementById('s-dp').textContent = '- ' + formatRp(dp);
+  document.getElementById('s-sisa').textContent = formatRp(sisa);
+  renderPreview();
+}
+
+// ===== FORMAT =====
+function formatRp(n) {
+  return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+}
+function fmtDate(str) {
+  if (!str) return '-';
+  const [y,m,d] = str.split('-');
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return `${d} ${months[parseInt(m)-1]} ${y}`;
+}
+
+// ===== RENDER PREVIEW =====
+function renderPreview() {
+  const data = getFormData();
+  const html = buildInvoiceHTML(data);
+  document.getElementById('invoice-preview').innerHTML = html;
+}
+
+function getFormData() {
+  const { subtotal, diskon, total, dp, sisa } = getCalc();
+  const bisnis = currentBisnis;
+  let bisnisNama, tema, logoSrc, logoType;
+  if (bisnis === 'ks') {
+    bisnisNama = 'Kidung Sore Wedding Organizer';
+    tema = 'ks';
+    logoSrc = KS_LOGO;
+    logoType = 'jpg';
+  } else if (bisnis === 'nd') {
+    bisnisNama = '#NgeData bareng Madha';
+    tema = 'nd';
+    logoSrc = ND_LOGO;
+    logoType = 'png';
+  } else {
+    bisnisNama = document.getElementById('custom-nama').value || 'Nama Bisnis';
+    tema = document.getElementById('custom-tema').value;
+    logoSrc = null;
+    logoType = null;
+  }
+  return {
+    bisnis, bisnisNama, tema, logoSrc, logoType,
+    invNumber: document.getElementById('inv-number').value || '—',
+    invDate: document.getElementById('inv-date').value,
+    invDue: document.getElementById('inv-due').value,
+    clientName: document.getElementById('client-name').value || '—',
+    clientWa: document.getElementById('client-wa').value || '',
+    clientAddress: document.getElementById('client-address').value || '',
+    extraNote: document.getElementById('extra-note').value || '',
+    items: [...items],
+    subtotal, diskon, total, dp, sisa,
+    discType: document.getElementById('disc-type').value,
+    discVal: parseFloat(document.getElementById('disc-value').value) || 0,
+  };
+}
+
+function buildInvoiceHTML(d) {
+  const themeClass = d.tema === 'ks' ? 'theme-ks' : d.tema === 'nd' ? 'theme-nd' : `theme-generic theme-${d.tema}`;
+  const logoHTML = d.logoSrc
+    ? `<img class="inv-logo" src="${d.logoSrc}" alt="Logo">`
+    : `<div style="font-size:22px;font-weight:800;opacity:0.8">${d.bisnisNama}</div>`;
+  const discLabel = d.discType === 'persen' ? `Diskon (${d.discVal}%)` : 'Diskon';
+  const itemRows = d.items.map(i => {
+    const sub = i.qty * i.price;
+    return `<tr><td>${i.desc || '—'}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${formatRp(i.price)}</td><td>${formatRp(sub)}</td></tr>`;
+  }).join('');
+  const noteHTML = d.extraNote ? `<p style="margin-top:6px;font-size:12px;opacity:0.8">${d.extraNote}</p>` : '';
+  return `
+<div class="invoice ${themeClass}">
+  <div class="inv-header">
+    <div class="inv-header-top">
+      ${logoHTML}
+      <div style="text-align:right">
+        <div class="inv-title">INVOICE</div>
+        <div class="inv-number">${d.invNumber}</div>
+        <div class="bisnis-info">${d.bisnisNama}</div>
+      </div>
+    </div>
+  </div>
+  <div class="inv-meta">
+    <div>
+      <div class="inv-meta-label">Kepada</div>
+      <div class="inv-meta-value">${d.clientName}</div>
+      ${d.clientAddress ? `<div style="font-size:11px;opacity:0.7;margin-top:2px">${d.clientAddress}</div>` : ''}
+    </div>
+    <div style="text-align:right">
+      <div class="inv-meta-label">Tanggal</div>
+      <div class="inv-meta-value">${fmtDate(d.invDate)}</div>
+      <div class="inv-meta-label" style="margin-top:8px">Jatuh Tempo</div>
+      <div class="inv-meta-value">${fmtDate(d.invDue)}</div>
+    </div>
+  </div>
+  <div class="inv-body">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:45%">Deskripsi</th>
+          <th style="width:10%;text-align:center">Qty</th>
+          <th style="width:20%;text-align:right">Harga</th>
+          <th style="width:25%;text-align:right">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    <div class="inv-calc">
+      <div class="calc-table">
+        <div class="calc-row"><span>Subtotal</span><span>${formatRp(d.subtotal)}</span></div>
+        <div class="calc-row"><span>${discLabel}</span><span>- ${formatRp(d.diskon)}</span></div>
+        <div class="calc-row total"><span>TOTAL</span><span>${formatRp(d.total)}</span></div>
+        ${d.dp > 0 ? `<div class="calc-row"><span>DP / Uang Muka</span><span>- ${formatRp(d.dp)}</span></div>
+        <div class="calc-row sisa"><span>Sisa Pelunasan</span><span>${formatRp(d.sisa)}</span></div>` : ''}
+      </div>
+    </div>
+  </div>
+  <div class="inv-footer">
+    <div class="inv-footer-title">Informasi Pembayaran</div>
+    <div class="bank-list">
+      ${BANKS.map(b => `<div class="bank-item"><span class="bank-name">${b.name}</span> — ${b.number}</div>`).join('')}
+    </div>
+    <div class="inv-note">*Mohon konfirmasi setelah melakukan pembayaran</div>
+    ${noteHTML}
+    <div class="inv-contact">📧 almadharafif.personal@gmail.com &nbsp;|&nbsp; 📱 088989862043</div>
+  </div>
+</div>`;
+}
+
+// ===== DOWNLOAD PDF =====
+function downloadPDF() {
+  const data = getFormData();
+  const invHTML = buildInvoiceHTML(data);
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = invHTML;
+  wrapper.style.cssText = 'width:760px;background:white;';
+  // inject styles
+  const styleEl = document.createElement('style');
+  styleEl.textContent = document.querySelector('style').textContent;
+  wrapper.prepend(styleEl);
+  document.body.appendChild(wrapper);
+  const opt = {
+    margin: 0,
+    filename: `Invoice-${data.invNumber || 'madha'}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'px', format: [760, 1080], orientation: 'portrait' }
+  };
+  html2pdf().from(wrapper).set(opt).save().then(() => {
+    document.body.removeChild(wrapper);
+    saveToHistory();
+  });
+}
+
+// ===== WHATSAPP =====
+function sendWhatsApp() {
+  const data = getFormData();
+  downloadPDF();
+  const pesan = `Halo ${data.clientName || 'Kak'} 👋
+
+Berikut saya kirimkan *Invoice* untuk Anda:
+
+📄 *No. Invoice:* ${data.invNumber}
+📅 *Tanggal:* ${fmtDate(data.invDate)}
+⏰ *Jatuh Tempo:* ${fmtDate(data.invDue)}
+
+💰 *Total Tagihan:* ${formatRp(data.total)}
+${data.dp > 0 ? `✅ *DP Masuk:* ${formatRp(data.dp)}\n💸 *Sisa Pelunasan:* ${formatRp(data.sisa)}` : ''}
+
+*Pembayaran dapat dilakukan via:*
+${BANKS.map(b => `💳 ${b.name} – ${b.number}`).join('\n')}
+
+_*Mohon konfirmasi setelah melakukan pembayaran_
+
+Terima kasih 🙏`;
+
+  const wa = data.clientWa.replace(/[^0-9]/g, '');
+  const url = wa
+    ? `https://wa.me/${wa}?text=${encodeURIComponent(pesan)}`
+    : `https://wa.me/?text=${encodeURIComponent(pesan)}`;
+  setTimeout(() => window.open(url, '_blank'), 1500);
+}
+
+// ===== HISTORY =====
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('invoice_history') || '[]'); } catch { return []; }
+}
+function saveHistory(h) {
+  localStorage.setItem('invoice_history', JSON.stringify(h));
+}
+function saveToHistory() {
+  const data = getFormData();
+  if (!data.clientName || data.clientName === '—') return;
+  const h = getHistory();
+  const entry = {
+    id: Date.now(),
+    ts: new Date().toISOString(),
+    invNumber: data.invNumber,
+    clientName: data.clientName,
+    bisnis: data.bisnisNama,
+    total: data.total,
+    sisa: data.sisa,
+    status: 'unpaid',
+    items: data.items,
+  };
+  h.unshift(entry);
+  if (h.length > 50) h.pop();
+  saveHistory(h);
+  alert('✅ Invoice disimpan ke riwayat!');
+}
+function showHistory() {
+  const h = getHistory();
+  const list = document.getElementById('history-list');
+  if (!h.length) {
+    list.innerHTML = '<div class="empty-history">Belum ada riwayat invoice tersimpan.</div>';
+  } else {
+    list.innerHTML = h.map(e => `
+      <div class="history-item" id="hist-${e.id}">
+        <div class="history-item-top">
+          <div>
+            <div class="history-item-name">${e.clientName}</div>
+            <div class="history-item-inv">${e.invNumber} — ${e.bisnis}</div>
+          </div>
+          <span class="status-badge ${e.status === 'paid' ? 'status-paid' : 'status-unpaid'}">
+            ${e.status === 'paid' ? '✅ LUNAS' : '⏳ BELUM LUNAS'}
+          </span>
+        </div>
+        <div class="history-item-detail">
+          <span>💰 Total: ${formatRp(e.total)}</span>
+          ${e.sisa > 0 ? `<span>💸 Sisa: ${formatRp(e.sisa)}</span>` : ''}
+          <span>📅 ${new Date(e.ts).toLocaleDateString('id-ID')}</span>
+        </div>
+        <div class="history-item-actions">
+          ${e.status !== 'paid' ? `<button class="hist-btn hist-btn-paid" onclick="markPaid(${e.id})">✅ Tandai Lunas</button>` : ''}
+          <button class="hist-btn hist-btn-del" onclick="deleteHistory(${e.id})">🗑 Hapus</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('history-panel').classList.add('show');
+}
+function hideHistory() {
+  document.getElementById('history-panel').classList.remove('show');
+}
+function markPaid(id) {
+  const h = getHistory();
+  const e = h.find(x => x.id === id);
+  if (e) { e.status = 'paid'; saveHistory(h); showHistory(); }
+}
+function deleteHistory(id) {
+  if (!confirm('Hapus invoice ini dari riwayat?')) return;
+  saveHistory(getHistory().filter(x => x.id !== id));
+  showHistory();
+}
+</script>
+</body>
+</html>
